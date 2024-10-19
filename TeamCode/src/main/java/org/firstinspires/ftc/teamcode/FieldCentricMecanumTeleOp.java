@@ -13,6 +13,9 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 @TeleOp
 public class FieldCentricMecanumTeleOp extends LinearOpMode {
+    private final int CLIMBER_UP_POS = 2000;
+    private final int CLIMBER_DOWN_POS = 0;
+
     @Override
     public void runOpMode() throws InterruptedException {
         // Declare our motors
@@ -21,6 +24,7 @@ public class FieldCentricMecanumTeleOp extends LinearOpMode {
         DcMotor backLeftMotor = hardwareMap.dcMotor.get("backLeftMotor");
         DcMotor frontRightMotor = hardwareMap.dcMotor.get("frontRightMotor");
         DcMotor backRightMotor = hardwareMap.dcMotor.get("backRightMotor");
+        DcMotor climbMotor = hardwareMap.dcMotor.get("climbMotor");
 
         // Declare our servo
         Servo claw = hardwareMap.servo.get("claw");
@@ -34,7 +38,8 @@ public class FieldCentricMecanumTeleOp extends LinearOpMode {
         backLeftMotor.setDirection(DcMotorSimple.Direction.REVERSE);
         backRightMotor.setDirection(DcMotorSimple.Direction.REVERSE);
 
-
+        // set climber direction
+        climbMotor.setDirection(DcMotorSimple.Direction.REVERSE);
 
         // Retrieve the IMU from the hardware map
         IMU imu = hardwareMap.get(IMU.class, "imu");
@@ -45,7 +50,13 @@ public class FieldCentricMecanumTeleOp extends LinearOpMode {
         // Without this, the REV Hub's orientation is assumed to be logo up / USB forward
         imu.initialize(parameters);
 
+        // Resetting climber encoder to 0
+        climbMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+
         waitForStart();
+
+        // Default settings for motor
+        climbMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION); // todo Switch to Run to position
 
         if (isStopRequested()) return;
 
@@ -55,6 +66,10 @@ public class FieldCentricMecanumTeleOp extends LinearOpMode {
             double rightX = gamepad1.right_stick_x;
             boolean buttonY = gamepad1.y;
             boolean buttonX = gamepad1.x;
+            double leftTrigger = gamepad1.left_trigger;
+            double rightTrigger = gamepad1.right_trigger;
+            boolean upButton = gamepad1.dpad_up;
+            boolean downButton = gamepad1.dpad_down;
 
             // drivetrain
 
@@ -90,12 +105,33 @@ public class FieldCentricMecanumTeleOp extends LinearOpMode {
                 claw.setPosition(1);
             }
 
+            // climb
+            double climberPower = (rightTrigger - leftTrigger) * .75;
+            if (upButton) {
+                climbMotor.setTargetPosition(CLIMBER_UP_POS);
+            }
+            if (downButton) {
+                climbMotor.setTargetPosition(CLIMBER_DOWN_POS);
+            }
+
+            // set motors
+
             frontLeftMotor.setPower(frontLeftPower);
             backLeftMotor.setPower(backLeftPower);
             frontRightMotor.setPower(frontRightPower);
             backRightMotor.setPower(backRightPower);
+//            climbMotor.setPower(climberPower);
 
-            telemetry.addData("Claw position", claw.getPosition());
+            // logging
+
+            telemetry.addData("Claw Position", claw.getPosition());
+            telemetry.addData("Climb Power", climberPower);
+            telemetry.addData("Left Trigger", leftTrigger);
+            telemetry.addData("Right Trigger", rightTrigger);
+            telemetry.addData("Climb Current Position", climbMotor.getCurrentPosition());
+            telemetry.addData("Climb Target Position", climbMotor.getTargetPosition());
+
+            telemetry.update();
         }
     }
 }
