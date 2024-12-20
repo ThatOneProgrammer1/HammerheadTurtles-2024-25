@@ -8,11 +8,7 @@ import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
-
-
-import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 @TeleOp
 public class FieldCentricMecanumTeleOp extends LinearOpMode {
@@ -23,50 +19,28 @@ public class FieldCentricMecanumTeleOp extends LinearOpMode {
     public void runOpMode() throws InterruptedException {
         // Declare our motors
         // Make sure your ID's match your configuration
-        // Done in MecanumDrive class
-//        DcMotor frontLeftMotor = hardwareMap.dcMotor.get("frontLeftMotor");
-//        DcMotor backLeftMotor = hardwareMap.dcMotor.get("backLeftMotor");
-//        DcMotor frontRightMotor = hardwareMap.dcMotor.get("frontRightMotor");
-//        DcMotor backRightMotor = hardwareMap.dcMotor.get("backRightMotor");
         MecanumDrive drive = new MecanumDrive(hardwareMap, new Pose2d(0, 0, 0));
         DcMotor climbMotor = hardwareMap.dcMotor.get("climbMotor");
 
         // Declare our servo
         Servo claw = hardwareMap.servo.get("claw");
 
-
-
-        // Reverse the right side motors. This may be wrong for your setup.
-        // If your robot moves backwards when commanded to go forwards,
-        // reverse the left side instead.
-        // See the note about this earlier on this page.
-
-        // Already done in MecanumDrive class
-//        backLeftMotor.setDirection(DcMotorSimple.Direction.REVERSE);
-//        backRightMotor.setDirection(DcMotorSimple.Direction.REVERSE);
-
-        // set climber direction
-        climbMotor.setDirection(DcMotorSimple.Direction.REVERSE);
-
         // Retrieve the IMU from the hardware map
         IMU imu = hardwareMap.get(IMU.class, "imu");
         // Adjust the orientation parameters to match your robot
         IMU.Parameters parameters = new IMU.Parameters(new RevHubOrientationOnRobot(
-                RevHubOrientationOnRobot.LogoFacingDirection.UP,
-                RevHubOrientationOnRobot.UsbFacingDirection.FORWARD));
+                RevHubOrientationOnRobot.LogoFacingDirection.BACKWARD,
+                RevHubOrientationOnRobot.UsbFacingDirection.DOWN));
         // Without this, the REV Hub's orientation is assumed to be logo up / USB forward
         imu.initialize(parameters);
 
         // Resetting climber encoder to 0
         climbMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
 
-        // If true, it is run to position mode. If false it's run without encoder
-        boolean climbToPosition = true;
-
         waitForStart();
 
         // Default settings for motor
-        climbMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION); // todo Switch to Run to position
+        climbMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
         if (isStopRequested()) return;
 
@@ -80,7 +54,6 @@ public class FieldCentricMecanumTeleOp extends LinearOpMode {
             double rightTrigger = gamepad1.right_trigger;
             boolean upButton = gamepad1.dpad_up;
             boolean downButton = gamepad1.dpad_down;
-            boolean backButton = gamepad1.back;
 
             drive.setDrivePowers(new PoseVelocity2d(
                     new Vector2d(
@@ -103,22 +76,6 @@ public class FieldCentricMecanumTeleOp extends LinearOpMode {
             if (gamepad1.options) {
                 imu.resetYaw();
             }
-            double botHeading = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);
-
-            // Rotate the movement direction counter to the bot's rotation
-            double rotX = leftX * Math.cos(-botHeading) - leftY * Math.sin(-botHeading);
-            double rotY = leftX * Math.sin(-botHeading) + leftY * Math.cos(-botHeading);
-
-            rotX = rotX * 1.1;  // Counteract imperfect strafing
-
-            // Denominator is the largest motor power (absolute value) or 1
-            // This ensures all the powers maintain the same ratio,
-            // but only if at least one is out of the range [-1, 1]
-            double denominator = Math.max(Math.abs(rotY) + Math.abs(rotX) + Math.abs(rightX), 1);
-            double frontLeftPower = (rotY + rotX + rightX) / denominator;
-            double backLeftPower = (rotY - rotX + rightX) / denominator;
-            double frontRightPower = (rotY - rotX - rightX) / denominator;
-            double backRightPower = (rotY + rotX - rightX) / denominator;
 
             // claw
             if (buttonY) {
@@ -128,36 +85,25 @@ public class FieldCentricMecanumTeleOp extends LinearOpMode {
                 claw.setPosition(1);
             }
 
-            // climb
-            double climberPower = (rightTrigger - leftTrigger) * 0.75;
-
-            // making climbToPosition toggle from false to true, true to false
-            if (backButton){
-                climbToPosition = !climbToPosition;
-            }
-
-            if (climbToPosition) {
-                climbMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-            } else {
-                climbMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-            }
-
             // REMEMBER YOU HAVE TO PRESS UP ON DPAD BEFORE IT WORKS
             if (upButton) {
                 climbMotor.setTargetPosition(CLIMBER_UP_POS);
+                climbMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+               // climbMotor.setPower(climberPower);
             }
             if (downButton) {
                 climbMotor.setTargetPosition(CLIMBER_DOWN_POS);
+                climbMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+               // climbMotor.setPower(climberPower);
             }
-
-            // set motors
-
-            // Done in MecanumDrive class
-//            frontLeftMotor.setPower(frontLeftPower);
-//            backLeftMotor.setPower(backLeftPower);
-//            frontRightMotor.setPower(frontRightPower);
-//            backRightMotor.setPower(backRightPower);
-            // climbMotor.setPower(climberPower);
+            if (gamepad1.right_trigger > 0) {
+                climbMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+                climbMotor.setPower(gamepad1.right_trigger);
+            }
+            if (gamepad1.left_trigger > 0) {
+                climbMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+                climbMotor.setPower(-gamepad1.left_trigger);
+            }
 
             // logging
 
@@ -166,9 +112,9 @@ public class FieldCentricMecanumTeleOp extends LinearOpMode {
             telemetry.addData("heading (deg)", Math.toDegrees(drive.pose.heading.toDouble()));
 
             telemetry.addData("Claw Position", claw.getPosition());
-            telemetry.addData("Climb Power", climberPower);
             telemetry.addData("Left Trigger", leftTrigger);
             telemetry.addData("Right Trigger", rightTrigger);
+            telemetry.addData("Climb Motor Power", climbMotor.getPower());
             telemetry.addData("Climb Current Position", climbMotor.getCurrentPosition());
             telemetry.addData("Climb Target Position", climbMotor.getTargetPosition());
 
